@@ -8,6 +8,11 @@ import okhttp3.Response;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
 public class MyApp {
 
@@ -23,6 +28,7 @@ public class MyApp {
             runUpdate(client);
         }
 
+        System.out.println("Runs " + version);
     }
 
     private static void runUpdate(OkHttpClient client) throws IOException {
@@ -37,6 +43,8 @@ public class MyApp {
             System.err.println("Download failed! " + response.code());
             return;
         }
+
+        // todo: verify signature
 
         FileOutputStream fos = new FileOutputStream("app_" + newVersion + ".jar");
         InputStream is = response.body().byteStream();
@@ -70,5 +78,20 @@ public class MyApp {
             e.printStackTrace();
             return false;
         }
+    }
+
+
+    public static PublicKey loadPublicKey(String base64PublicKey) throws Exception {
+        byte[] keyBytes = Base64.getDecoder().decode(base64PublicKey);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return keyFactory.generatePublic(spec);
+    }
+
+    public static boolean verifySignature(PublicKey publicKey, byte[] data, byte[] signatureBytes) throws Exception {
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initVerify(publicKey);
+        signature.update(data);
+        return signature.verify(signatureBytes);
     }
 }
